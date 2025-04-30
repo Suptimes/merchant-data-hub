@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -367,7 +366,7 @@ export default function Analytics() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis />
-                    <Tooltip formatter={(value) => [`$${Math.floor(value * 0.09)}`, "AVG Order Value"]} />
+                    <Tooltip formatter={(value: number) => [`$${Math.floor(value * 0.09)}`, "AVG Order Value"]} />
                     <Legend />
                     <Line
                       type="monotone"
