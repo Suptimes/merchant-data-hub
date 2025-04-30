@@ -50,7 +50,10 @@ export default function TopProducts() {
                 <p className="text-sm font-medium">{product.name}</p>
                 <span className="text-sm text-shopify-light-text">{product.sales} sold</span>
               </div>
-              <Progress value={product.percentage} className="h-2 bg-shopify-gray" indicatorClassName="bg-shopify-blue" />
+              <Progress 
+                value={product.percentage} 
+                className="h-2 bg-shopify-gray" 
+              />
             </div>
           ))}
         </div>
