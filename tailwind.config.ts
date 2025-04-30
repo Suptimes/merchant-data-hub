@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,14 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				shopify: {
+					'blue': '#008060',
+					'light-blue': '#f1f8f5',
+					'dark-blue': '#004c3f',
+					'gray': '#f6f6f7',
+					'text': '#222222',
+					'light-text': '#637381'
 				}
 			},
 			borderRadius: {
