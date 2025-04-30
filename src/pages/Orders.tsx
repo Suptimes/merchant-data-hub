@@ -1,70 +1,86 @@
 
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Search, ShoppingCart } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+interface Order {
+  id: string;
+  customer_id: string;
+  customer_name: string;
+  status: "processing" | "shipped" | "delivered";
+  created_at: string;
+  amount: number;
+  items: number;
+}
 
 export default function Orders() {
-  const orders = [
-    {
-      id: "ORD-5392",
-      customer: "John Smith",
-      status: "processing",
-      date: "Apr 29, 2023",
-      amount: "$129.99",
-      items: 2
-    },
-    {
-      id: "ORD-5391",
-      customer: "Sarah Johnson",
-      status: "shipped",
-      date: "Apr 28, 2023",
-      amount: "$79.95",
-      items: 1
-    },
-    {
-      id: "ORD-5390",
-      customer: "Michael Brown",
-      status: "delivered",
-      date: "Apr 28, 2023",
-      amount: "$249.00",
-      items: 3
-    },
-    {
-      id: "ORD-5389",
-      customer: "Emily Davis",
-      status: "processing",
-      date: "Apr 27, 2023",
-      amount: "$65.49",
-      items: 1
-    },
-    {
-      id: "ORD-5388",
-      customer: "David Wilson",
-      status: "delivered",
-      date: "Apr 27, 2023",
-      amount: "$189.99",
-      items: 2
-    },
-    {
-      id: "ORD-5387",
-      customer: "Linda Thompson",
-      status: "shipped",
-      date: "Apr 26, 2023",
-      amount: "$124.50",
-      items: 2
-    },
-    {
-      id: "ORD-5386",
-      customer: "Robert Martinez",
-      status: "processing",
-      date: "Apr 26, 2023",
-      amount: "$32.99",
-      items: 1
-    },
-  ];
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      setLoading(true);
+      try {
+        // Fetch orders with customer information
+        const { data, error } = await supabase
+          .from('orders')
+          .select(`
+            *,
+            customers:customer_id (name)
+          `)
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          throw error;
+        }
+        
+        // Transform data to match expected format
+        const formattedOrders: Order[] = data?.map(order => ({
+          id: order.id,
+          customer_id: order.customer_id,
+          customer_name: order.customers?.name || 'Unknown',
+          status: order.status,
+          created_at: order.created_at,
+          amount: order.amount,
+          items: order.items
+        })) || [];
+        
+        setOrders(formattedOrders);
+      } catch (error) {
+        console.error('Error fetching orders:', error);
+        toast.error("Failed to load orders");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, []);
+
+  const filteredOrders = orders.filter(order =>
+    order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.customer_name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const formatCurrency = (amount: number) => {
+    return `$${amount.toFixed(2)}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -76,6 +92,8 @@ export default function Orders() {
             type="search"
             placeholder="Search orders..."
             className="pl-8 w-full"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
       </div>
@@ -86,55 +104,61 @@ export default function Orders() {
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-xs border-b border-gray-200">
-                  <th className="font-medium pb-3 pl-4">Order</th>
-                  <th className="font-medium pb-3">Customer</th>
-                  <th className="font-medium pb-3">Date</th>
-                  <th className="font-medium pb-3">Status</th>
-                  <th className="font-medium pb-3">Items</th>
-                  <th className="font-medium pb-3">Total</th>
-                  <th className="font-medium pb-3 pr-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.map((order) => (
-                  <tr key={order.id} className="border-b border-gray-100 last:border-0">
-                    <td className="py-3 pl-4">
-                      <div className="flex items-center">
-                        <div className="mr-3 bg-shopify-gray rounded p-1.5">
-                          <ShoppingCart className="h-5 w-5 text-shopify-light-text" />
-                        </div>
-                        <span className="font-medium">{order.id}</span>
-                      </div>
-                    </td>
-                    <td className="py-3">{order.customer}</td>
-                    <td className="py-3 text-sm text-shopify-light-text">{order.date}</td>
-                    <td className="py-3">
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "font-medium text-xs",
-                          order.status === "processing" && "border-amber-500 text-amber-500",
-                          order.status === "shipped" && "border-blue-500 text-blue-500",
-                          order.status === "delivered" && "border-green-500 text-green-500"
-                        )}
-                      >
-                        {order.status}
-                      </Badge>
-                    </td>
-                    <td className="py-3">{order.items}</td>
-                    <td className="py-3 font-medium">{order.amount}</td>
-                    <td className="py-3 pr-4 text-right">
-                      <Button variant="ghost" size="sm">
-                        View
-                      </Button>
-                    </td>
+            {loading ? (
+              <div className="py-8 flex justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-shopify-blue"></div>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="text-left text-xs border-b border-gray-200">
+                    <th className="font-medium pb-3 pl-4">Order</th>
+                    <th className="font-medium pb-3">Customer</th>
+                    <th className="font-medium pb-3">Date</th>
+                    <th className="font-medium pb-3">Status</th>
+                    <th className="font-medium pb-3">Items</th>
+                    <th className="font-medium pb-3">Total</th>
+                    <th className="font-medium pb-3 pr-4 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filteredOrders.map((order) => (
+                    <tr key={order.id} className="border-b border-gray-100 last:border-0">
+                      <td className="py-3 pl-4">
+                        <div className="flex items-center">
+                          <div className="mr-3 bg-shopify-gray rounded p-1.5">
+                            <ShoppingCart className="h-5 w-5 text-shopify-light-text" />
+                          </div>
+                          <span className="font-medium">{order.id}</span>
+                        </div>
+                      </td>
+                      <td className="py-3">{order.customer_name}</td>
+                      <td className="py-3 text-sm text-shopify-light-text">{formatDate(order.created_at)}</td>
+                      <td className="py-3">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "font-medium text-xs",
+                            order.status === "processing" && "border-amber-500 text-amber-500",
+                            order.status === "shipped" && "border-blue-500 text-blue-500",
+                            order.status === "delivered" && "border-green-500 text-green-500"
+                          )}
+                        >
+                          {order.status}
+                        </Badge>
+                      </td>
+                      <td className="py-3">{order.items}</td>
+                      <td className="py-3 font-medium">{formatCurrency(order.amount)}</td>
+                      <td className="py-3 pr-4 text-right">
+                        <Button variant="ghost" size="sm">
+                          View
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </CardContent>
       </Card>
