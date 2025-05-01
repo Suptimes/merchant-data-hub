@@ -3,20 +3,18 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
-import { Search, ShoppingCart } from "lucide-react";
+import { Check, Package, Search, Truck, ShoppingBag } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface Order {
   id: string;
   customer_id: string;
-  customer_name: string;
   status: "processing" | "shipped" | "delivered";
   created_at: string;
   amount: number;
   items: number;
+  customer_name?: string;
 }
 
 export default function Orders() {
@@ -28,31 +26,39 @@ export default function Orders() {
     const fetchOrders = async () => {
       setLoading(true);
       try {
-        // Fetch orders with customer information
-        const { data, error } = await supabase
+        // Fetch orders
+        const { data: ordersData, error: ordersError } = await supabase
           .from('orders')
-          .select(`
-            *,
-            customers:customer_id (name)
-          `)
+          .select('*')
           .order('created_at', { ascending: false });
         
-        if (error) {
-          throw error;
+        if (ordersError) {
+          throw ordersError;
         }
         
-        // Transform data to match expected format
-        const formattedOrders: Order[] = data?.map(order => ({
-          id: order.id,
-          customer_id: order.customer_id,
-          customer_name: order.customers?.name || 'Unknown',
-          status: order.status,
-          created_at: order.created_at,
-          amount: order.amount,
-          items: order.items
+        // Fetch customers to get names
+        const { data: customersData, error: customersError } = await supabase
+          .from('customers')
+          .select('id, name');
+        
+        if (customersError) {
+          throw customersError;
+        }
+        
+        // Create a mapping of customer IDs to names
+        const customerMap = new Map();
+        customersData?.forEach(customer => {
+          customerMap.set(customer.id, customer.name);
+        });
+        
+        // Add customer names to orders
+        const ordersWithCustomerNames = ordersData?.map(order => ({
+          ...order,
+          status: order.status as "processing" | "shipped" | "delivered",
+          customer_name: customerMap.get(order.customer_id) || 'Unknown'
         })) || [];
         
-        setOrders(formattedOrders);
+        setOrders(ordersWithCustomerNames);
       } catch (error) {
         console.error('Error fetching orders:', error);
         toast.error("Failed to load orders");

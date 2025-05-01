@@ -3,27 +3,9 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, ListOrdered, GripVertical } from "lucide-react";
+import { Plus, ListOrdered } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent
-} from "@dnd-kit/core";
-
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy
-} from "@dnd-kit/sortable";
 
 interface Category {
   id: string;
@@ -33,143 +15,56 @@ interface Category {
   product_count?: number;
 }
 
-interface SortableItemProps {
-  id: string;
-  category: Category;
-}
-
-const SortableItem = ({ category }: SortableItemProps) => {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
-    id: category.id
-  });
-
-  const style = {
-    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
-    transition
-  };
-
-  return (
-    <tr ref={setNodeRef} style={style} className="border-b border-gray-100 last:border-0">
-      <td className="py-3 pl-4">
-        <div className="flex items-center">
-          <div className="mr-3 cursor-move" {...attributes} {...listeners}>
-            <GripVertical className="h-5 w-5 text-shopify-light-text" />
-          </div>
-          <div className="mr-3 bg-shopify-gray rounded p-1.5">
-            <ListOrdered className="h-5 w-5 text-shopify-light-text" />
-          </div>
-          <span className="font-medium">{category.name}</span>
-        </div>
-      </td>
-      <td className="py-3">
-        {category.description ? (
-          <span className="text-sm text-shopify-light-text">{category.description}</span>
-        ) : (
-          <span className="text-sm text-gray-400">No description</span>
-        )}
-      </td>
-      <td className="py-3 text-right pr-4">
-        <Button variant="ghost" size="sm">
-          Edit
-        </Button>
-      </td>
-    </tr>
-  );
-};
-
 export default function Categories() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates
-    })
-  );
-
   useEffect(() => {
-    const fetchCategories = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('categories')
-          .select('*')
-          .order('display_order', { ascending: true });
-        
-        if (error) {
-          throw error;
-        }
-        
-        // Get product counts
-        const { data: productData, error: productError } = await supabase
-          .from('products')
-          .select('category_id');
-        
-        if (productError) {
-          throw productError;
-        }
-
-        // Count products for each category
-        const productCounts: Record<string, number> = {};
-        productData?.forEach(product => {
-          if (product.category_id) {
-            productCounts[product.category_id] = (productCounts[product.category_id] || 0) + 1;
-          }
-        });
-
-        // Add product count to categories
-        const categoriesWithProductCount = data?.map(category => ({
-          ...category,
-          product_count: productCounts[category.id] || 0
-        })) || [];
-        
-        setCategories(categoriesWithProductCount);
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-        toast.error("Failed to load categories");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchCategories();
   }, []);
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    
-    if (!over || active.id === over.id) {
-      return;
-    }
-    
-    setCategories(prevCategories => {
-      const oldIndex = prevCategories.findIndex(cat => cat.id === active.id);
-      const newIndex = prevCategories.findIndex(cat => cat.id === over.id);
-      
-      return arrayMove(prevCategories, oldIndex, newIndex);
-    });
-    
-    // Update display order in database
+  const fetchCategories = async () => {
+    setLoading(true);
     try {
-      const updatedCategories = categories.map((cat, index) => ({
-        id: cat.id,
-        display_order: index
-      }));
-      
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('categories')
-        .upsert(updatedCategories, { onConflict: 'id' });
-        
+        .select('*')
+        .order('display_order', { ascending: true });
+      
       if (error) {
         throw error;
       }
       
-      toast.success("Category order updated");
+      // Get product counts
+      const { data: productData, error: productError } = await supabase
+        .from('products')
+        .select('category_id');
+      
+      if (productError) {
+        throw productError;
+      }
+
+      // Count products for each category
+      const productCounts: Record<string, number> = {};
+      productData?.forEach(product => {
+        if (product.category_id) {
+          productCounts[product.category_id] = (productCounts[product.category_id] || 0) + 1;
+        }
+      });
+
+      // Add product count to categories
+      const categoriesWithProductCount = data?.map(category => ({
+        ...category,
+        product_count: productCounts[category.id] || 0
+      })) || [];
+      
+      setCategories(categoriesWithProductCount);
     } catch (error) {
-      console.error("Error updating category order:", error);
-      toast.error("Failed to update category order");
+      console.error('Error fetching categories:', error);
+      toast.error("Failed to load categories");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -207,9 +102,6 @@ export default function Categories() {
           <CardTitle className="flex items-center gap-2">
             <ListOrdered className="h-5 w-5" />
             All Categories
-            <span className="ml-2 text-sm font-normal text-gray-500">
-              (Drag to reorder)
-            </span>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -235,24 +127,30 @@ export default function Categories() {
                       </td>
                     </tr>
                   ) : (
-                    <DndContext 
-                      sensors={sensors}
-                      collisionDetection={closestCenter}
-                      onDragEnd={handleDragEnd}
-                    >
-                      <SortableContext 
-                        items={filteredCategories.map(cat => cat.id)}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        {filteredCategories.map((category) => (
-                          <SortableItem 
-                            key={category.id} 
-                            id={category.id} 
-                            category={category} 
-                          />
-                        ))}
-                      </SortableContext>
-                    </DndContext>
+                    filteredCategories.map((category) => (
+                      <tr key={category.id} className="border-b border-gray-100 last:border-0">
+                        <td className="py-3 pl-4">
+                          <div className="flex items-center">
+                            <div className="mr-3 bg-shopify-gray rounded p-1.5">
+                              <ListOrdered className="h-5 w-5 text-shopify-light-text" />
+                            </div>
+                            <span className="font-medium">{category.name}</span>
+                          </div>
+                        </td>
+                        <td className="py-3">
+                          {category.description ? (
+                            <span className="text-sm text-shopify-light-text">{category.description}</span>
+                          ) : (
+                            <span className="text-sm text-gray-400">No description</span>
+                          )}
+                        </td>
+                        <td className="py-3 text-right pr-4">
+                          <Button variant="ghost" size="sm">
+                            Edit
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
                   )}
                 </tbody>
               </table>

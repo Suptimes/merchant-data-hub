@@ -3,19 +3,23 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Percent, Plus, Search } from "lucide-react";
+import { Plus, Search, Tag, Percent } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+
+type DiscountType = "fixed" | "percentage" | "shipping";
+type DiscountStatus = "active" | "expired" | "scheduled";
 
 interface Discount {
   id: string;
   description: string;
-  type: "percentage" | "fixed" | "shipping";
+  type: DiscountType;
   value: string;
-  status: "active" | "expired" | "scheduled";
+  status: DiscountStatus;
   usage_count: number;
   expires_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export default function Discounts() {
@@ -36,7 +40,14 @@ export default function Discounts() {
           throw error;
         }
         
-        setDiscounts(data || []);
+        // Convert string types to our specific types
+        const typedDiscounts = data?.map(discount => ({
+          ...discount,
+          type: discount.type as DiscountType,
+          status: discount.status as DiscountStatus
+        })) || [];
+        
+        setDiscounts(typedDiscounts);
       } catch (error) {
         console.error('Error fetching discounts:', error);
         toast.error("Failed to load discounts");
