@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Package, Plus, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 
 interface Product {
   id: string;
@@ -13,8 +14,8 @@ interface Product {
   sku: string;
   price: number;
   inventory: number;
-  category_id: string;
-  description: string;
+  category_id: string | null;
+  description: string | null;
 }
 
 export default function Products() {
@@ -71,14 +72,13 @@ export default function Products() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <Button 
-            className="bg-shopify-blue hover:bg-shopify-dark-blue"
-            onClick={() => {
-              toast.info("Add product feature coming soon");
-            }}
-          >
-            <Plus className="mr-2 h-4 w-4" /> Add Product
-          </Button>
+          <Link to="/products/add">
+            <Button 
+              className="bg-shopify-blue hover:bg-shopify-dark-blue"
+            >
+              <Plus className="mr-2 h-4 w-4" /> Add Product
+            </Button>
+          </Link>
         </div>
       </div>
       
@@ -104,26 +104,34 @@ export default function Products() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredProducts.map((product) => (
-                    <tr key={product.id} className="border-b border-gray-100 last:border-0">
-                      <td className="py-3 pl-4">
-                        <div className="flex items-center">
-                          <div className="mr-3 bg-shopify-gray rounded p-1.5">
-                            <Package className="h-5 w-5 text-shopify-light-text" />
-                          </div>
-                          <span className="font-medium">{product.name}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 text-sm text-shopify-light-text">{product.sku}</td>
-                      <td className="py-3">{formatPrice(product.price)}</td>
-                      <td className="py-3">{product.inventory}</td>
-                      <td className="py-3 pr-4 text-right">
-                        <Button variant="ghost" size="sm">
-                          Edit
-                        </Button>
+                  {filteredProducts.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-6 text-center text-gray-500">
+                        {searchTerm ? 'No products match your search.' : 'No products found. Add your first product.'}
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredProducts.map((product) => (
+                      <tr key={product.id} className="border-b border-gray-100 last:border-0">
+                        <td className="py-3 pl-4">
+                          <div className="flex items-center">
+                            <div className="mr-3 bg-shopify-gray rounded p-1.5">
+                              <Package className="h-5 w-5 text-shopify-light-text" />
+                            </div>
+                            <span className="font-medium">{product.name}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 text-sm text-shopify-light-text">{product.sku}</td>
+                        <td className="py-3">{formatPrice(product.price)}</td>
+                        <td className="py-3">{product.inventory}</td>
+                        <td className="py-3 pr-4 text-right">
+                          <Button variant="ghost" size="sm">
+                            Edit
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             )}
