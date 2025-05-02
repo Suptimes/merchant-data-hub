@@ -122,6 +122,9 @@ export default function Discounts() {
         status: status, // Required field
         starts_at: status === "scheduled" && addDateRange?.from ? addDateRange.from.toISOString() : null,
         expires_at: status === "scheduled" && addDateRange?.to ? addDateRange.to.toISOString() : null,
+        usage_count: 0, // Default value
+        updated_at: new Date().toISOString(), // Required field
+        created_at: new Date().toISOString() // Required field
       };
       
       const { data, error } = await supabase
@@ -171,6 +174,7 @@ export default function Discounts() {
         status,
         starts_at: status === "scheduled" && editDateRange?.from ? editDateRange.from.toISOString() : null,
         expires_at: status === "scheduled" && editDateRange?.to ? editDateRange.to.toISOString() : null,
+        updated_at: new Date().toISOString()
       };
       
       const { data, error } = await supabase

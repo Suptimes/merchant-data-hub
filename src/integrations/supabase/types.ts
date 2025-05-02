@@ -93,6 +93,7 @@ export type Database = {
           description: string
           expires_at: string | null
           id: string
+          starts_at: string | null
           status: string
           type: string
           updated_at: string
@@ -104,6 +105,7 @@ export type Database = {
           description: string
           expires_at?: string | null
           id: string
+          starts_at?: string | null
           status: string
           type: string
           updated_at?: string
@@ -115,6 +117,7 @@ export type Database = {
           description?: string
           expires_at?: string | null
           id?: string
+          starts_at?: string | null
           status?: string
           type?: string
           updated_at?: string
