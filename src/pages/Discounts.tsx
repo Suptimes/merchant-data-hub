@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -100,16 +99,21 @@ export default function Discounts() {
   // Add discount mutation
   const addDiscountMutation = useMutation({
     mutationFn: async (values: z.infer<typeof discountFormSchema>) => {
-      const { code, ...rest } = values;
+      const { code, description, value, type, status } = values;
+      
+      // Create a properly structured object that matches what Supabase expects
+      const discountData = {
+        id: code, // Use code as the discount ID
+        description: description, // Required field
+        value: value, // Required field
+        type: type, // Required field
+        status: status, // Required field
+        // Other fields will use DB defaults
+      };
       
       const { data, error } = await supabase
         .from("discounts")
-        .insert([
-          { 
-            id: code,
-            ...rest
-          }
-        ])
+        .insert(discountData)
         .select();
       
       if (error) {
@@ -139,12 +143,24 @@ export default function Discounts() {
   // Edit discount mutation
   const editDiscountMutation = useMutation({
     mutationFn: async (values: z.infer<typeof discountFormSchema>) => {
-      const { code, ...rest } = values;
+      const { description, value, type, status } = values;
+      
+      if (!currentDiscount) {
+        throw new Error("No discount selected for editing");
+      }
+      
+      // Create a properly structured object for update
+      const updateData = {
+        description,
+        value,
+        type,
+        status,
+      };
       
       const { data, error } = await supabase
         .from("discounts")
-        .update(rest)
-        .eq("id", currentDiscount?.id)
+        .update(updateData)
+        .eq("id", currentDiscount.id)
         .select();
       
       if (error) {
