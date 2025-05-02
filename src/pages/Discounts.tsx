@@ -1,8 +1,10 @@
+
 import { useState } from "react";
+import { addDays, format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Plus, Tag, Search, Trash, Edit, Percent, DollarSign } from "lucide-react";
+import { Plus, Tag, Search, Trash, Edit, Percent, DollarSign, CalendarRange } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +15,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { DatePickerWithRange } from "@/components/DatePickerWithRange";
+import { DateRange } from "react-day-picker";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -32,6 +36,8 @@ interface Discount {
   type: "percentage" | "fixed";
   status: "active" | "expired" | "scheduled";
   usage_count: number;
+  starts_at?: string;
+  expires_at?: string;
 }
 
 // Form schema for adding/editing discounts
@@ -53,6 +59,8 @@ export default function Discounts() {
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [currentDiscount, setCurrentDiscount] = useState<Discount | null>(null);
+  const [addDateRange, setAddDateRange] = useState<DateRange | undefined>();
+  const [editDateRange, setEditDateRange] = useState<DateRange | undefined>();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -79,6 +87,10 @@ export default function Discounts() {
       status: "active"
     },
   });
+
+  // Watch status changes to control date picker visibility
+  const addFormStatus = addForm.watch("status");
+  const editFormStatus = editForm.watch("status");
 
   // Fetch discounts
   const { data: discounts = [], isLoading, isError } = useQuery({
@@ -108,7 +120,8 @@ export default function Discounts() {
         value: value, // Required field
         type: type, // Required field
         status: status, // Required field
-        // Other fields will use DB defaults
+        starts_at: status === "scheduled" && addDateRange?.from ? addDateRange.from.toISOString() : null,
+        expires_at: status === "scheduled" && addDateRange?.to ? addDateRange.to.toISOString() : null,
       };
       
       const { data, error } = await supabase
@@ -126,6 +139,7 @@ export default function Discounts() {
       queryClient.invalidateQueries({ queryKey: ["discounts"] });
       setIsAddSheetOpen(false);
       addForm.reset();
+      setAddDateRange(undefined);
       toast({
         title: "Discount created",
         description: "Discount has been created successfully",
@@ -155,6 +169,8 @@ export default function Discounts() {
         value,
         type,
         status,
+        starts_at: status === "scheduled" && editDateRange?.from ? editDateRange.from.toISOString() : null,
+        expires_at: status === "scheduled" && editDateRange?.to ? editDateRange.to.toISOString() : null,
       };
       
       const { data, error } = await supabase
@@ -173,6 +189,7 @@ export default function Discounts() {
       queryClient.invalidateQueries({ queryKey: ["discounts"] });
       setIsEditSheetOpen(false);
       setCurrentDiscount(null);
+      setEditDateRange(undefined);
       toast({
         title: "Discount updated",
         description: "Discount has been updated successfully",
@@ -236,6 +253,17 @@ export default function Discounts() {
       type: discount.type,
       status: discount.status,
     });
+    
+    // Set date range if available
+    if (discount.starts_at || discount.expires_at) {
+      setEditDateRange({
+        from: discount.starts_at ? new Date(discount.starts_at) : undefined,
+        to: discount.expires_at ? new Date(discount.expires_at) : undefined
+      });
+    } else {
+      setEditDateRange(undefined);
+    }
+    
     setIsEditSheetOpen(true);
   };
 
@@ -263,6 +291,21 @@ export default function Discounts() {
       default:
         return "bg-gray-100 text-gray-800";
     }
+  };
+
+  const formatScheduleDates = (discount: Discount) => {
+    if (discount.status !== "scheduled") return null;
+    
+    if (discount.starts_at && discount.expires_at) {
+      return (
+        <div className="text-xs text-gray-500 mt-1 flex items-center">
+          <CalendarRange className="h-3 w-3 mr-1" />
+          {format(new Date(discount.starts_at), "MMM d, yyyy")} - {format(new Date(discount.expires_at), "MMM d, yyyy")}
+        </div>
+      );
+    }
+    
+    return null;
   };
 
   return (
@@ -334,7 +377,10 @@ export default function Discounts() {
                           </div>
                         </td>
                         <td className="py-3">
-                          {discount.description}
+                          <div>
+                            {discount.description}
+                            {formatScheduleDates(discount)}
+                          </div>
                         </td>
                         <td className="py-3">
                           <div className="flex items-center">
@@ -509,6 +555,20 @@ export default function Discounts() {
                   </FormItem>
                 )}
               />
+              
+              {addFormStatus === "scheduled" && (
+                <FormItem>
+                  <FormLabel>Schedule Dates</FormLabel>
+                  <DatePickerWithRange
+                    dateRange={addDateRange}
+                    onUpdate={setAddDateRange}
+                  />
+                  <FormMessage>
+                    {!addDateRange?.from && "Start date is required for scheduled discounts"}
+                    {!addDateRange?.to && addDateRange?.from && "End date is required for scheduled discounts"}
+                  </FormMessage>
+                </FormItem>
+              )}
 
               <div className="flex justify-end gap-2 pt-4">
                 <Button 
@@ -516,13 +576,17 @@ export default function Discounts() {
                   onClick={() => {
                     setIsAddSheetOpen(false);
                     addForm.reset();
+                    setAddDateRange(undefined);
                   }}
                 >
                   Cancel
                 </Button>
                 <Button 
                   type="submit" 
-                  disabled={addDiscountMutation.isPending}
+                  disabled={
+                    addDiscountMutation.isPending || 
+                    (addFormStatus === "scheduled" && (!addDateRange?.from || !addDateRange?.to))
+                  }
                   className="bg-shopify-blue hover:bg-shopify-dark-blue"
                 >
                   {addDiscountMutation.isPending ? "Creating..." : "Create Discount"}
@@ -537,6 +601,7 @@ export default function Discounts() {
       <Sheet open={isEditSheetOpen} onOpenChange={(open) => {
         if (!open) {
           setCurrentDiscount(null);
+          setEditDateRange(undefined);
         }
         setIsEditSheetOpen(open);
       }}>
@@ -630,6 +695,20 @@ export default function Discounts() {
                   </FormItem>
                 )}
               />
+              
+              {editFormStatus === "scheduled" && (
+                <FormItem>
+                  <FormLabel>Schedule Dates</FormLabel>
+                  <DatePickerWithRange
+                    dateRange={editDateRange}
+                    onUpdate={setEditDateRange}
+                  />
+                  <FormMessage>
+                    {!editDateRange?.from && "Start date is required for scheduled discounts"}
+                    {!editDateRange?.to && editDateRange?.from && "End date is required for scheduled discounts"}
+                  </FormMessage>
+                </FormItem>
+              )}
 
               <div className="flex justify-end gap-2 pt-4">
                 <Button 
@@ -637,13 +716,17 @@ export default function Discounts() {
                   onClick={() => {
                     setIsEditSheetOpen(false);
                     setCurrentDiscount(null);
+                    setEditDateRange(undefined);
                   }}
                 >
                   Cancel
                 </Button>
                 <Button 
                   type="submit" 
-                  disabled={editDiscountMutation.isPending}
+                  disabled={
+                    editDiscountMutation.isPending || 
+                    (editFormStatus === "scheduled" && (!editDateRange?.from || !editDateRange?.to))
+                  }
                   className="bg-shopify-blue hover:bg-shopify-dark-blue"
                 >
                   {editDiscountMutation.isPending ? "Saving..." : "Save Changes"}
