@@ -206,37 +206,85 @@ export type Database = {
           },
         ]
       }
+      product_relationships: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          related_product_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          related_product_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          related_product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_relationships_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_relationships_related_product_id_fkey"
+            columns: ["related_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
+          care_instructions: string | null
           category_id: string | null
+          color: string | null
           created_at: string
           description: string | null
           id: string
+          image_url: string | null
           inventory: number
           name: string
           price: number
+          size: string | null
           sku: string
           updated_at: string
         }
         Insert: {
+          care_instructions?: string | null
           category_id?: string | null
+          color?: string | null
           created_at?: string
           description?: string | null
           id?: string
+          image_url?: string | null
           inventory?: number
           name: string
           price: number
+          size?: string | null
           sku: string
           updated_at?: string
         }
         Update: {
+          care_instructions?: string | null
           category_id?: string | null
+          color?: string | null
           created_at?: string
           description?: string | null
           id?: string
+          image_url?: string | null
           inventory?: number
           name?: string
           price?: number
+          size?: string | null
           sku?: string
           updated_at?: string
         }
@@ -255,6 +303,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_analytics_data: {
+        Args: { event_type: string; start_date?: string; end_date?: string }
+        Returns: {
+          event_date: string
+          value: number
+          additional_data: Json
+        }[]
+      }
       get_customer_count: {
         Args: { start_date?: string; end_date?: string }
         Returns: number

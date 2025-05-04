@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Package, Plus, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 interface Product {
   id: string;
@@ -16,12 +16,17 @@ interface Product {
   inventory: number;
   category_id: string | null;
   description: string | null;
+  color: string | null;
+  size: string | null;
+  image_url: string | null;
+  care_instructions: string | null;
 }
 
 export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -55,6 +60,10 @@ export default function Products() {
 
   const formatPrice = (price: number) => {
     return `$${price.toFixed(2)}`;
+  };
+
+  const handleEdit = (productId: string) => {
+    navigate(`/products/edit/${productId}`);
   };
 
   return (
@@ -116,7 +125,15 @@ export default function Products() {
                         <td className="py-3 pl-4">
                           <div className="flex items-center">
                             <div className="mr-3 bg-shopify-gray rounded p-1.5">
-                              <Package className="h-5 w-5 text-shopify-light-text" />
+                              {product.image_url ? (
+                                <img 
+                                  src={product.image_url} 
+                                  alt={product.name} 
+                                  className="h-5 w-5 object-cover" 
+                                />
+                              ) : (
+                                <Package className="h-5 w-5 text-shopify-light-text" />
+                              )}
                             </div>
                             <span className="font-medium">{product.name}</span>
                           </div>
@@ -125,7 +142,11 @@ export default function Products() {
                         <td className="py-3">{formatPrice(product.price)}</td>
                         <td className="py-3">{product.inventory}</td>
                         <td className="py-3 pr-4 text-right">
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleEdit(product.id)}
+                          >
                             Edit
                           </Button>
                         </td>
