@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { addDays, format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -45,10 +44,16 @@ const discountFormSchema = z.object({
   code: z.string().min(3, "Discount code must be at least 3 characters"),
   description: z.string().min(3, "Description must be at least 3 characters"),
   value: z.string().refine((val) => {
+    // Allow "free" as a valid value
+    if (val.toLowerCase() === "free") {
+      return true;
+    }
+    
+    // Otherwise, ensure it's a non-negative number
     const num = parseFloat(val);
-    return !isNaN(num) && num > 0;
+    return !isNaN(num) && num >= 0;
   }, {
-    message: "Value must be a positive number",
+    message: "Value must be 'free' or a non-negative number",
   }),
   type: z.enum(["percentage", "fixed"]),
   status: z.enum(["active", "expired", "scheduled"]),
@@ -276,8 +281,11 @@ export default function Discounts() {
     discount.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Format discount for display
   const formatDiscount = (discount: Discount) => {
-    if (discount.type === "percentage") {
+    if (discount.value.toLowerCase() === "free") {
+      return "Free";
+    } else if (discount.type === "percentage") {
       return `${discount.value}%`;
     } else {
       return `$${discount.value}`;
