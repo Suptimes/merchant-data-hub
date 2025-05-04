@@ -255,6 +255,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_analytics_data: {
+        Args: { event_type: string; start_date?: string; end_date?: string }
+        Returns: {
+          event_date: string
+          value: number
+          additional_data: Json
+        }[]
+      }
       get_customer_count: {
         Args: { start_date?: string; end_date?: string }
         Returns: number
