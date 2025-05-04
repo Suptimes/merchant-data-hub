@@ -30,7 +30,11 @@ import { format, subDays } from "date-fns";
 interface AnalyticsEvent {
   event_date: string;
   value: number;
-  additional_data: any;
+  additional_data: {
+    name?: string;
+    value?: number;
+    [key: string]: any;
+  } | null;
 }
 
 // Fetch functions for different analytics data
@@ -43,7 +47,7 @@ const fetchAnalyticsData = async (eventType: string) => {
     throw new Error(error.message);
   }
   
-  return data;
+  return data as AnalyticsEvent[];
 };
 
 // Fetch real database metrics using RPC functions
