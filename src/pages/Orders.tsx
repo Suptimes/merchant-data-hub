@@ -17,12 +17,17 @@ interface Order {
   id: string;
   customer_name?: string;
   date?: string;
-  total: number;
+  total?: number; // Make total optional
+  amount: number; // Add amount property
   status: "paid" | "pending" | "failed" | "refunded";
   items: number;
   customer_id: string;
   created_at: string;
   updated_at: string;
+  customers?: {
+    name: string;
+    email: string;
+  };
 }
 
 export default function Orders() {
@@ -55,6 +60,7 @@ export default function Orders() {
         ...order,
         customer_name: order.customers?.name || 'Unknown',
         date: order.created_at,
+        total: order.amount, // Map amount to total for backward compatibility
       }));
 
       setOrders(formattedOrders);
@@ -193,7 +199,7 @@ export default function Orders() {
                         </td>
                         <td className="py-3">{formatDate(order.date || order.created_at)}</td>
                         <td className="py-3">{order.customer_name}</td>
-                        <td className="py-3 font-medium">{formatCurrency(order.total)}</td>
+                        <td className="py-3 font-medium">{formatCurrency(order.amount)}</td>
                         <td className="py-3">
                           <Badge variant="outline" className={cn(getStatusColor(order.status))}>
                             {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
