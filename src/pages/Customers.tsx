@@ -35,11 +35,19 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Customer {
   id: string;
   name: string;
   email: string;
+  role?: string;
 }
 
 interface OrderSummary {
@@ -48,9 +56,12 @@ interface OrderSummary {
   total_spent: number;
 }
 
+type CustomerRole = "Admin" | "Customer" | "Super Admin";
+
 const customerFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email address"),
+  role: z.enum(["Admin", "Customer", "Super Admin"]).default("Customer"),
 });
 
 export default function Customers() {
@@ -62,12 +73,14 @@ export default function Customers() {
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [currentCustomer, setCurrentCustomer] = useState<Customer | null>(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [roleUpdateLoading, setRoleUpdateLoading] = useState(false);
 
   const addForm = useForm({
     resolver: zodResolver(customerFormSchema),
     defaultValues: {
       name: "",
       email: "",
+      role: "Customer" as CustomerRole,
     },
   });
 
@@ -76,6 +89,7 @@ export default function Customers() {
     defaultValues: {
       name: "",
       email: "",
+      role: "Customer" as CustomerRole,
     },
   });
 
@@ -88,6 +102,7 @@ export default function Customers() {
       editForm.reset({
         name: currentCustomer.name,
         email: currentCustomer.email,
+        role: (currentCustomer.role || "Customer") as CustomerRole,
       });
     }
   }, [currentCustomer, isEditSheetOpen, editForm]);
@@ -105,7 +120,31 @@ export default function Customers() {
         throw customerError;
       }
       
-      setCustomers(customerData || []);
+      // Fetch roles for all customers
+      const { data: roleData, error: roleError } = await supabase
+        .from('customer_roles')
+        .select('user_id, role');
+        
+      if (roleError) {
+        console.error('Error fetching roles:', roleError);
+        // Continue without roles if there's an error
+      }
+      
+      // Create a map of user_id to role
+      const roleMap: Record<string, string> = {};
+      if (roleData) {
+        roleData.forEach(item => {
+          roleMap[item.user_id] = item.role;
+        });
+      }
+      
+      // Add roles to customers
+      const customersWithRoles = customerData?.map(customer => ({
+        ...customer,
+        role: roleMap[customer.id] || "Customer"
+      })) || [];
+      
+      setCustomers(customersWithRoles);
       
       // Fetch order summaries for each customer
       const { data: orderData, error: orderError } = await supabase
@@ -143,13 +182,30 @@ export default function Customers() {
 
   const handleAddCustomer = async (data: z.infer<typeof customerFormSchema>) => {
     try {
-      const { error } = await supabase
+      // Add customer to customers table
+      const { data: newCustomer, error } = await supabase
         .from('customers')
         .insert([
           { name: data.name, email: data.email }
-        ]);
+        ])
+        .select()
+        .single();
 
       if (error) throw error;
+      
+      // Add role to customer_roles table
+      if (newCustomer) {
+        const { error: roleError } = await supabase
+          .from('customer_roles')
+          .insert([
+            { user_id: newCustomer.id, role: data.role }
+          ]);
+          
+        if (roleError) {
+          console.error('Error adding role:', roleError);
+          // Don't throw here, just log the error and continue
+        }
+      }
       
       toast.success("Customer added successfully");
       addForm.reset();
@@ -165,12 +221,28 @@ export default function Customers() {
     if (!currentCustomer) return;
     
     try {
+      // Update customer in customers table
       const { error } = await supabase
         .from('customers')
         .update({ name: data.name, email: data.email })
         .eq('id', currentCustomer.id);
 
       if (error) throw error;
+      
+      // Update or insert role in customer_roles table
+      const { error: roleError } = await supabase
+        .from('customer_roles')
+        .upsert([
+          { 
+            user_id: currentCustomer.id, 
+            role: data.role
+          }
+        ], { onConflict: 'user_id' });
+        
+      if (roleError) {
+        console.error('Error updating role:', roleError);
+        throw roleError;
+      }
       
       toast.success("Customer updated successfully");
       setIsEditSheetOpen(false);
@@ -288,6 +360,31 @@ export default function Customers() {
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={addForm.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Role</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a role" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Customer">Customer</SelectItem>
+                          <SelectItem value="Admin">Admin</SelectItem>
+                          <SelectItem value="Super Admin">Super Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <div className="flex justify-end space-x-2">
                   <Button 
                     variant="outline" 
@@ -325,6 +422,7 @@ export default function Customers() {
                   <tr className="text-left text-xs border-b border-gray-200">
                     <th className="font-medium pb-3 pl-4">Customer</th>
                     <th className="font-medium pb-3">Email</th>
+                    <th className="font-medium pb-3">Role</th>
                     <th className="font-medium pb-3">Orders</th>
                     <th className="font-medium pb-3">Total Spent</th>
                     <th className="font-medium pb-3 pr-4 text-right">Actions</th>
@@ -333,7 +431,7 @@ export default function Customers() {
                 <tbody>
                   {filteredCustomers.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-6 text-center text-gray-500">
+                      <td colSpan={6} className="py-6 text-center text-gray-500">
                         {searchTerm ? 'No customers match your search.' : 'No customers found.'}
                       </td>
                     </tr>
@@ -351,6 +449,15 @@ export default function Customers() {
                           </div>
                         </td>
                         <td className="py-3 text-sm">{customer.email}</td>
+                        <td className="py-3 text-sm">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            customer.role === 'Admin' ? 'bg-blue-100 text-blue-800' :
+                            customer.role === 'Super Admin' ? 'bg-purple-100 text-purple-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {customer.role || 'Customer'}
+                          </span>
+                        </td>
                         <td className="py-3">{orderSummaries[customer.id]?.order_count || 0}</td>
                         <td className="py-3">
                           {orderSummaries[customer.id] 
@@ -414,6 +521,31 @@ export default function Customers() {
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={editForm.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Role</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a role" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Customer">Customer</SelectItem>
+                          <SelectItem value="Admin">Admin</SelectItem>
+                          <SelectItem value="Super Admin">Super Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <div className="flex justify-between mt-6">
                   <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
                     <AlertDialogTrigger asChild>
@@ -443,8 +575,16 @@ export default function Customers() {
                   <Button 
                     type="submit" 
                     className="bg-shopify-blue hover:bg-shopify-dark-blue"
+                    disabled={roleUpdateLoading}
                   >
-                    Save Changes
+                    {roleUpdateLoading ? (
+                      <>
+                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-b-transparent"></div>
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Changes'
+                    )}
                   </Button>
                 </div>
               </form>
@@ -452,7 +592,6 @@ export default function Customers() {
           </div>
         </SheetContent>
       </Sheet>
-
     </div>
   );
 }

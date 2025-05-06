@@ -63,6 +63,27 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["customer_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["customer_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["customer_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           created_at: string
@@ -323,13 +344,17 @@ export type Database = {
         Args: { start_date?: string; end_date?: string }
         Returns: number
       }
+      get_user_role: {
+        Args: { user_id: string }
+        Returns: string
+      }
       update_discount_statuses: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
     }
     Enums: {
-      [_ in never]: never
+      customer_role: "Admin" | "Customer" | "Super Admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -444,6 +469,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      customer_role: ["Admin", "Customer", "Super Admin"],
+    },
   },
 } as const
