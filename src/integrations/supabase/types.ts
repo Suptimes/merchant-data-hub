@@ -323,6 +323,10 @@ export type Database = {
         Args: { start_date?: string; end_date?: string }
         Returns: number
       }
+      update_discount_statuses: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
