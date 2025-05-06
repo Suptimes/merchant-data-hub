@@ -17,9 +17,9 @@ interface Order {
   id: string;
   customer_name?: string;
   date?: string;
-  total?: number; // Make total optional
-  amount: number; // Add amount property
-  status: "paid" | "pending" | "failed" | "refunded";
+  total?: number; 
+  amount: number;
+  status: string; // Change to string instead of union type to match what comes from Supabase
   items: number;
   customer_id: string;
   created_at: string;
