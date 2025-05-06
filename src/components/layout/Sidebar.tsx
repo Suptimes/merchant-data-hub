@@ -13,7 +13,8 @@ import {
   X 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -27,7 +28,20 @@ const navigation = [
 
 export default function Sidebar() {
   const location = useLocation();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const isMobile = useIsMobile();
+  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
+  
+  // Update sidebarOpen state when isMobile changes
+  useEffect(() => {
+    setSidebarOpen(!isMobile);
+  }, [isMobile]);
+
+  // Handle navigation item click
+  const handleNavItemClick = () => {
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
+  };
 
   return (
     <>
@@ -63,6 +77,7 @@ export default function Sidebar() {
                 <Link
                   key={item.name}
                   to={item.href}
+                  onClick={handleNavItemClick}
                   className={cn(
                     "flex items-center px-3 py-2 text-sm font-medium rounded-md group",
                     isActive
