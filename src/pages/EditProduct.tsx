@@ -25,6 +25,11 @@ interface Category {
   name: string;
 }
 
+interface Occasion {
+  id: string;
+  name: string;
+}
+
 interface RelatedProduct {
   id: string;
   name: string;
@@ -38,7 +43,9 @@ interface Product {
   price: number;
   inventory: number;
   category_id: string | null;
+  occasion_id: string | null;
   description: string | null;
+  discount: number | null;
   color: string | null;
   size: string | null;
   image_url: string | null;
@@ -51,6 +58,7 @@ export default function EditProduct() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [occasions, setOccasions] = useState<Occasion[]>([]);
   const [allProducts, setAllProducts] = useState<RelatedProduct[]>([]);
   const [relatedProducts, setRelatedProducts] = useState<string[]>([]);
   const [selectedRelatedProducts, setSelectedRelatedProducts] = useState<{ id: string; name: string }[]>([]);
@@ -62,6 +70,8 @@ export default function EditProduct() {
       price: 0,
       inventory: 0,
       category_id: "",
+      occasion_id: "",
+      discount: null,
       description: "",
       color: "",
       size: "",
@@ -92,6 +102,14 @@ export default function EditProduct() {
 
         if (categoriesError) throw categoriesError;
 
+        // Fetch occasions
+        const { data: occasionsData, error: occasionsError } = await supabase
+          .from("occasions")
+          .select("id, name")
+          .order("display_order", { ascending: true });
+
+        if (occasionsError) throw occasionsError;
+
         // Fetch all products for related products dropdown
         const { data: productsData, error: productsError } = await supabase
           .from("products")
@@ -116,6 +134,7 @@ export default function EditProduct() {
         }));
 
         setCategories(categoriesData || []);
+        setOccasions(occasionsData || []);
         setAllProducts(productsData || []);
         setRelatedProducts(relatedIds);
         setSelectedRelatedProducts(selectedProducts);
@@ -124,7 +143,8 @@ export default function EditProduct() {
         form.reset({
           ...productData,
           price: productData.price,
-          inventory: productData.inventory
+          inventory: productData.inventory,
+          discount: productData.discount
         });
 
       } catch (error) {
@@ -142,6 +162,14 @@ export default function EditProduct() {
   const handleSubmit = async (data: Product) => {
     setSaving(true);
     try {
+      // Parse discount to number or null
+      let discountValue = data.discount;
+      if (discountValue !== null && (discountValue < 0 || discountValue > 100)) {
+        toast.error("Discount must be between 0 and 100");
+        setSaving(false);
+        return;
+      }
+
       // Update product details
       const { error: updateError } = await supabase
         .from("products")
@@ -151,6 +179,8 @@ export default function EditProduct() {
           price: Number(data.price),
           inventory: Number(data.inventory),
           category_id: data.category_id || null,
+          occasion_id: data.occasion_id || null,
+          discount: discountValue,
           description: data.description || null,
           color: data.color || null,
           size: data.size || null,
@@ -281,6 +311,18 @@ export default function EditProduct() {
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="discount">Discount (%)</Label>
+                  <Input
+                    id="discount"
+                    {...form.register("discount", { min: 0, max: 100 })}
+                    type="number"
+                    min="0"
+                    max="100"
+                    placeholder="Enter discount percentage"
+                  />
+                </div>
+
+                <div className="space-y-2">
                   <Label htmlFor="inventory">Inventory</Label>
                   <Input
                     id="inventory"
@@ -305,6 +347,26 @@ export default function EditProduct() {
                       {categories.map((category) => (
                         <SelectItem key={category.id} value={category.id}>
                           {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="occasion">Occasion</Label>
+                  <Select 
+                    value={form.watch("occasion_id") || "none"} 
+                    onValueChange={(value) => form.setValue("occasion_id", value === "none" ? "" : value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select an occasion" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {occasions.map((occasion) => (
+                        <SelectItem key={occasion.id} value={occasion.id}>
+                          {occasion.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

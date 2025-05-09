@@ -38,22 +38,25 @@ export type Database = {
       }
       cart: {
         Row: {
-          created_at: string | null
+          color: string
           id: string
           product_id: string
           quantity: number
+          size: string
         }
         Insert: {
-          created_at?: string | null
+          color: string
           id: string
           product_id: string
           quantity: number
+          size: string
         }
         Update: {
-          created_at?: string | null
+          color?: string
           id?: string
           product_id?: string
           quantity?: number
+          size?: string
         }
         Relationships: [
           {
@@ -94,22 +97,43 @@ export type Database = {
       }
       customer_roles: {
         Row: {
-          created_at: string
+          created_at: string | null
           id: string
           role: Database["public"]["Enums"]["customer_role"]
           user_id: string
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           id?: string
-          role?: Database["public"]["Enums"]["customer_role"]
+          role: Database["public"]["Enums"]["customer_role"]
           user_id: string
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           id?: string
           role?: Database["public"]["Enums"]["customer_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      customer_roles_backup: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          role: Database["public"]["Enums"]["customer_role"] | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          role?: Database["public"]["Enums"]["customer_role"] | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          role?: Database["public"]["Enums"]["customer_role"] | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -173,6 +197,27 @@ export type Database = {
           updated_at?: string
           usage_count?: number
           value?: string
+        }
+        Relationships: []
+      }
+      occasions: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          name?: string
         }
         Relationships: []
       }
@@ -299,10 +344,12 @@ export type Database = {
           color: string | null
           created_at: string
           description: string | null
+          discount: number | null
           id: string
           image_url: string | null
           inventory: number
           name: string
+          occasion_id: string | null
           price: number
           size: string | null
           sku: string
@@ -314,10 +361,12 @@ export type Database = {
           color?: string | null
           created_at?: string
           description?: string | null
+          discount?: number | null
           id?: string
           image_url?: string | null
           inventory?: number
           name: string
+          occasion_id?: string | null
           price: number
           size?: string | null
           sku: string
@@ -329,10 +378,12 @@ export type Database = {
           color?: string | null
           created_at?: string
           description?: string | null
+          discount?: number | null
           id?: string
           image_url?: string | null
           inventory?: number
           name?: string
+          occasion_id?: string | null
           price?: number
           size?: string | null
           sku?: string
@@ -344,6 +395,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_occasion_id_fkey"
+            columns: ["occasion_id"]
+            isOneToOne: false
+            referencedRelation: "occasions"
             referencedColumns: ["id"]
           },
         ]
@@ -376,6 +434,12 @@ export type Database = {
       get_user_role: {
         Args: { user_id: string }
         Returns: string
+      }
+      log_auth_uid: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          uid: string
+        }[]
       }
       update_discount_statuses: {
         Args: Record<PropertyKey, never>

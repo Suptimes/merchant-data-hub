@@ -23,6 +23,11 @@ interface Category {
   name: string;
 }
 
+interface Occasion {
+  id: string;
+  name: string;
+}
+
 interface RelatedProduct {
   id: string;
   name: string;
@@ -38,7 +43,9 @@ export default function AddProduct() {
     price: "",
     inventory: "0",
     category_id: "",
+    occasion_id: "",
     description: "",
+    discount: "",
     color: "",
     size: "",
     image_url: "",
@@ -46,6 +53,7 @@ export default function AddProduct() {
   });
   
   const [categories, setCategories] = useState<Category[]>([]);
+  const [occasions, setOccasions] = useState<Occasion[]>([]);
   const [allProducts, setAllProducts] = useState<RelatedProduct[]>([]);
   const [relatedProducts, setRelatedProducts] = useState<string[]>([]);
   const [selectedRelatedProducts, setSelectedRelatedProducts] = useState<{ id: string; name: string }[]>([]);
@@ -63,6 +71,14 @@ export default function AddProduct() {
 
         if (categoriesError) throw categoriesError;
 
+        // Fetch occasions
+        const { data: occasionsData, error: occasionsError } = await supabase
+          .from("occasions")
+          .select("id, name")
+          .order("display_order", { ascending: true });
+
+        if (occasionsError) throw occasionsError;
+
         // Fetch all products for related products dropdown
         const { data: productsData, error: productsError } = await supabase
           .from("products")
@@ -72,6 +88,7 @@ export default function AddProduct() {
         if (productsError) throw productsError;
 
         setCategories(categoriesData || []);
+        setOccasions(occasionsData || []);
         setAllProducts(productsData || []);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -87,8 +104,8 @@ export default function AddProduct() {
     setProduct({ ...product, [name]: value });
   };
 
-  const handleSelectChange = (value: string) => {
-    setProduct({ ...product, category_id: value === "none" ? "" : value });
+  const handleSelectChange = (field: string, value: string) => {
+    setProduct({ ...product, [field]: value === "none" ? "" : value });
   };
 
   const addRelatedProduct = (productId: string) => {
@@ -120,6 +137,17 @@ export default function AddProduct() {
     setLoading(true);
 
     try {
+      // Parse discount to number or null
+      let discountValue = null;
+      if (product.discount) {
+        discountValue = parseFloat(product.discount);
+        if (discountValue < 0 || discountValue > 100) {
+          toast.error("Discount must be between 0 and 100");
+          setLoading(false);
+          return;
+        }
+      }
+
       // Insert the new product
       const { data, error } = await supabase.from("products").insert({
         name: product.name,
@@ -127,6 +155,8 @@ export default function AddProduct() {
         price: parseFloat(product.price),
         inventory: parseInt(product.inventory),
         category_id: product.category_id || null,
+        occasion_id: product.occasion_id || null,
+        discount: discountValue,
         description: product.description || null,
         color: product.color || null,
         size: product.size || null,
@@ -234,6 +264,20 @@ export default function AddProduct() {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="discount">Discount (%)</Label>
+                <Input
+                  id="discount"
+                  name="discount"
+                  type="number"
+                  min="0"
+                  max="100"
+                  placeholder="Enter discount percentage"
+                  value={product.discount}
+                  onChange={handleInputChange}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="inventory">Inventory</Label>
                 <Input
                   id="inventory"
@@ -248,7 +292,7 @@ export default function AddProduct() {
 
               <div className="space-y-2">
                 <Label htmlFor="category">Category</Label>
-                <Select value={product.category_id || "none"} onValueChange={handleSelectChange}>
+                <Select value={product.category_id || "none"} onValueChange={(value) => handleSelectChange("category_id", value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select a category" />
                   </SelectTrigger>
@@ -257,6 +301,23 @@ export default function AddProduct() {
                     {categories.map((category) => (
                       <SelectItem key={category.id} value={category.id}>
                         {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="occasion">Occasion</Label>
+                <Select value={product.occasion_id || "none"} onValueChange={(value) => handleSelectChange("occasion_id", value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an occasion" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {occasions.map((occasion) => (
+                      <SelectItem key={occasion.id} value={occasion.id}>
+                        {occasion.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
